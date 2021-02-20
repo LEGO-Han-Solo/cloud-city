@@ -1,0 +1,5 @@
+NAME_FIELD_NAME = "name"
+PRICE_FIELD_NAME = "price"
+IN_STOCK_FIELD_NAME = "in_stock"
+PEREX_FIELD_NAME = "perex"
+TIMESTAMP_FIELD_NAME = "timestamp"

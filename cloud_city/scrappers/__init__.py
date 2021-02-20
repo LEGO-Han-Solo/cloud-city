@@ -1,0 +1,1 @@
+from .legenio_cz_scrapper import LegenioCzScrapper
