@@ -6,18 +6,21 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from cloud_city.utils import get_str_timestamp
+from cloud_city.postprocessing import extract_star_wars_set_num
 from cloud_city.constants import NAME_FIELD_NAME, PRICE_FIELD_NAME, PEREX_FIELD_NAME, IN_STOCK_FIELD_NAME, \
-    TIMESTAMP_FIELD_NAME
+    TIMESTAMP_FIELD_NAME, PRODUCT_URL_FIELD_NAME, SET_NUM_FIELD_NAME
 
-URL_TEMPLATE = "https://www.legenio.cz/star-wars/?p={}"
+URL_TEMPLATE = "https://www.legenio.cz/star-wars"
+URL_PAGE_PARAM = "/?p={}"
 DEFAULT_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko)\
      Chrome/61.0.3163.100 Safari/537.36'}
 
 
 class LegenioCzScrapper:
-    def __init__(self, url_template=URL_TEMPLATE, headers=DEFAULT_HEADERS, timeout=2):
-        self.url = url_template
+    def __init__(self, url_template=URL_TEMPLATE, url_page_param=URL_PAGE_PARAM, headers=DEFAULT_HEADERS, timeout=2):
+        self.base_url = url_template
+        self.url_page_param = url_page_param
         self.headers = headers
         self.timeout = timeout
 
@@ -40,17 +43,22 @@ class LegenioCzScrapper:
     def _parse_product(self, product):
         price = self._get_price(product)
         name = self._get_name(product)
+        set_num = extract_star_wars_set_num(name)
         in_stock = self._in_stock(product)
         perex = self._get_perex(product)
+        product_url = self._get_product_url(product)
         timestamp = get_str_timestamp()
-        return {NAME_FIELD_NAME: name,
+        return {SET_NUM_FIELD_NAME: set_num,
+                NAME_FIELD_NAME: name,
                 PRICE_FIELD_NAME: price,
                 IN_STOCK_FIELD_NAME: in_stock,
                 PEREX_FIELD_NAME: perex,
-                TIMESTAMP_FIELD_NAME: timestamp}
+                TIMESTAMP_FIELD_NAME: timestamp,
+                PRODUCT_URL_FIELD_NAME: product_url}
 
     def _read_page(self, page_num):
-        response = requests.get(self.url.format(page_num), headers=self.headers)
+        url = self.base_url + self.url_page_param.format(page_num)
+        response = requests.get(url, headers=self.headers)
         content = response.content
         parser = BeautifulSoup(content, "html.parser")
         return parser
@@ -68,12 +76,15 @@ class LegenioCzScrapper:
         return products
 
     @staticmethod
-    def _get_price(product):
-        price = product.find("strong", {"class": "price"}).get_text().strip()
-        price = re.sub(',', '.', price)
-        price = re.sub(' ', '', price)
-        price = re.match(r"\d+\.?\d+", price).group(0)
-        return float(price)
+    def _detect_price(price_str):
+        price_str = re.sub(',', '.', price_str)
+        price_str = re.sub(' ', '', price_str)
+        price_str = re.findall(r"\d+\.?\d+", price_str)[0]
+        return float(price_str)
+
+    def _get_price(self, product):
+        price_str = product.find("strong", {"class": "price"}).get_text().strip()
+        return self._detect_price(price_str)
 
     @staticmethod
     def _in_stock(product):
@@ -88,3 +99,7 @@ class LegenioCzScrapper:
     @staticmethod
     def _get_perex(product):
         return product.find("div", {"class": "perex"}).get_text().strip()
+
+    def _get_product_url(self, product):
+        url_part = product.find("h2", {"class": "product-name"}).find("a", href=True)['href']
+        return self.base_url + url_part

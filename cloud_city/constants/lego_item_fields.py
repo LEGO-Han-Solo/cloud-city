@@ -3,3 +3,5 @@ PRICE_FIELD_NAME = "price"
 IN_STOCK_FIELD_NAME = "in_stock"
 PEREX_FIELD_NAME = "perex"
 TIMESTAMP_FIELD_NAME = "timestamp"
+PRODUCT_URL_FIELD_NAME = 'url'
+SET_NUM_FIELD_NAME = 'set_num'
